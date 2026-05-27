@@ -65,7 +65,7 @@ for depth in depths:
 #Random forest ( no pruning )
 # https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#
 
-estimators = [50,100,150,200,250,300,350,400]
+estimators = [1, 5, 10, 20, 50,100,150,200,250,300,350,400]
 max_features = ["sqrt", "log2", 50, 80, 110, 140, 170, 200]
 
 print("--------------- Random Forest (features variation) -----------------")
@@ -121,6 +121,56 @@ for estimator in estimators:
 
     print(f"n_estimators={estimator} ---- accuracy={acc:.8f}%") 
     print(f"train-error={train_error:.8f}%")
+    
+# different training set sizes
+
+
+fractions = [0.05, 0.10, 0.20, 0.40, 0.60, 0.80, 1.0] # to be multipled with training set size
+
+print("--------------- Decision Tree (training size variation) -----------------")
+for f in fractions:
+    n = int(f * len(X_train))
+    X_sub = X_train.iloc[:n]
+    y_sub = y_train.iloc[:n]
+
+    clf = tree.DecisionTreeClassifier(random_state=GLOBAL_SEED, ccp_alpha=1e-3)
+    clf.fit(X_sub, y_sub)
+
+    train_error = (clf.predict(X_sub) != y_sub).mean() * 100
+    test_error = (clf.predict(X_test) != y_test).mean() * 100
+    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.8f}%")
+
+
+print("--------------- Random Forest (training size variation) -----------------")
+for f in fractions:
+    n = int(f * len(X_train)) 
+    X_sub = X_train.iloc[:n]
+    y_sub = y_train.iloc[:n]
+
+    clf_forest = RandomForestClassifier(n_estimators=100,random_state=GLOBAL_SEED,  n_jobs=-1)
+    clf_forest.fit(X_sub, y_sub)
+
+    train_error = (clf_forest.predict(X_sub) != y_sub).mean() * 100
+    test_error = (clf_forest.predict(X_test) != y_test).mean() * 100
+
+
+    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.8f}%")
+
+
+print("--------------- Adaboost (training size variation) -----------------")
+for f in fractions:
+    n = int(f * len(X_train))
+    X_sub = X_train.iloc[:n]
+    y_sub = y_train.iloc[:n]
+
+    clf_ada = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1),n_estimators=100,random_state=GLOBAL_SEED) 
+    clf_ada.fit(X_sub, y_sub)
+
+    train_error = (clf_ada.predict(X_sub) != y_sub).mean() * 100
+    test_error = (clf_ada.predict(X_test) != y_test).mean() * 100
+
+
+    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.8f}%")
 
 #defining k-fold cross-validation
 
