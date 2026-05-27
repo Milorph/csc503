@@ -18,21 +18,25 @@ print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
 #Component 1
 
 # decision tree with pruning
-alphas = [0.0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 0.003, 0.002]
+alphas = [0.0, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1]
+depths = []
 
 for alpha in alphas:
     clf = tree.DecisionTreeClassifier(
         random_state=GLOBAL_SEED,
         ccp_alpha=alpha
-    )
+    ) # should try with different depths to prevent overfitting maybe
 
     clf.fit(X_train, y_train)
 
-    y_pred = clf.predict(X_test)
+    y_pred = clf.predict(X_test) #train model
 
-    acc = accuracy_score(y_test, y_pred)
+    acc = accuracy_score(y_test, y_pred) * 100
+    train_error = (clf.predict(X_train) != y_train).mean() * 100
+    
 
-    print(f"alpha={alpha:.6f} -> accuracy={acc:.4f}") # accuracy was 
+    print(f"alpha={alpha:.6f} ---- accuracy={acc:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
 
 #Random forest ( no pruning )
 
@@ -42,3 +46,5 @@ for alpha in alphas:
 
 def k_fold_cross_valid():
   return
+
+#plotting
