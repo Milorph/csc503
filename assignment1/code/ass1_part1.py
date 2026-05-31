@@ -205,4 +205,34 @@ def k_fold_cross_valid(model_select, k, X, y, random_seed=GLOBAL_SEED):
     
     print(np.mean(val_errors), val_errors)
     return np.mean(val_errors), val_errors
+
+# k-fold random forest
+rf_sizes = [1, 5, 10, 25, 50, 100, 150, 200, 250, 300, 350, 400]
+rf_scores = {}
+for m in rf_sizes:
+    rf = RandomForestClassifier(n_estimators=m, random_state=GLOBAL_SEED, n_jobs=-1)
+    mean_err, _ = k_fold_cross_valid(rf, 5, X_train, y_train)
+    rf_scores[m] = mean_err
+
+best_rf_size = min(rf_scores, key=rf_scores.get) #find best param for n_estimator
+
+
+# k-fold ada
+ada_sizes = [1, 5, 10, 25, 50, 100, 200, 300, 400, 500]
+ada_scores = {}
+for m in ada_sizes:
+    ada = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1),n_estimators=m, random_state=GLOBAL_SEED)
+    mean_err, _ = k_fold_cross_valid(ada, 5, X_train, y_train)
+    ada_scores[m] = mean_err
+
+
+best_ada_size = min(ada_scores, key=ada_scores.get)
+
+print(best_rf_size, best_ada_size)
+# use best params
+best_rf = RandomForestClassifier(n_estimators=best_rf_size, random_state=GLOBAL_SEED, n_jobs=-1).fit(X_train, y_train)
+best_ada = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1), n_estimators=best_ada_size, random_state=GLOBAL_SEED).fit(X_train, y_train)
+
+rf_test_err  = (best_rf.predict(X_test)  != y_test).mean() * 100
+ada_test_err = (best_ada.predict(X_test) != y_test).mean() * 100
 #plotting
