@@ -26,6 +26,7 @@ depths = [2, 4, 6, 8, 10, 12, 14]
 
 
 print("--------------- Decision Tree with different ccp_alpha -----------------")
+dt_alpha_results = []
 for alpha in alphas:
     clf_decision_tree = tree.DecisionTreeClassifier(
         random_state=GLOBAL_SEED,
@@ -36,12 +37,12 @@ for alpha in alphas:
 
     y_pred = clf_decision_tree.predict(X_test) #predict with trained
 
-    acc = accuracy_score(y_test, y_pred) * 100
     train_error = (clf_decision_tree.predict(X_train) != y_train).mean() * 100
+    test_error  = (clf_decision_tree.predict(X_test)  != y_test).mean() * 100
     
     
-    print(f"ccp_alpha={alpha:.6f} ---- accuracy={acc:.8f}%") 
-    print(f"train-error={train_error:.8f}%")
+    print(f"ccp_alpha={alpha:.6f} ---- test_error={test_error:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
 
 print("--------------- Decision Tree with different max_depths -----------------")
 for depth in depths:
@@ -55,12 +56,12 @@ for depth in depths:
 
     y_pred = clf_decision_tree.predict(X_test) #predict with trained
 
-    acc = accuracy_score(y_test, y_pred) * 100
+    test_error = (clf_decision_tree.predict(X_test)  != y_test).mean() * 100
     train_error = (clf_decision_tree.predict(X_train) != y_train).mean() * 100
     
     
-    print(f"max_depths={depth} ---- accuracy={acc:.8f}%") 
-    print(f"train-error={train_error:.8f}%")
+    print(f"max_depths={depth} ---- test_error={test_error:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
 
 #Random forest ( no pruning )
 # https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html#
@@ -74,12 +75,13 @@ for feature in max_features:
     clf_forest.fit(X_train, y_train)
     y_pred = clf_forest.predict(X_test) #predict with trained
 
-    acc = accuracy_score(y_test, y_pred) * 100
+    test_error = (clf_forest.predict(X_test)  != y_test).mean() * 100
+    
     train_error = (clf_forest.predict(X_train) != y_train).mean() * 100
 
 
-    print(f"n_estimators={100}, max_features={feature} ---- accuracy={acc:.8f}%") 
-    print(f"train-error={train_error:.8f}%")
+    print(f"n_estimators={100}, max_features={feature} ---- test_error={test_error:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
 
 print("--------------- Random Forest (n_estimators variation) -----------------")
 for estimator in estimators:
@@ -87,12 +89,12 @@ for estimator in estimators:
     clf_forest.fit(X_train, y_train)
     y_pred = clf_forest.predict(X_test) #predict with trained
 
-    acc = accuracy_score(y_test, y_pred) * 100
+    test_error = (clf_forest.predict(X_test)  != y_test).mean() * 100
     train_error = (clf_forest.predict(X_train) != y_train).mean() * 100
 
 
-    print(f"n_estimators={estimator} ---- accuracy={acc:.8f}%") 
-    print(f"train-error={train_error:.8f}%")
+    print(f"n_estimators={estimator} ---- test_error={test_error:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
 #Boosted decision trees https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.AdaBoostClassifier.html
 
 depths = [1, 2, 3, 4, 5, 6, 7]
@@ -102,12 +104,12 @@ for depth in depths:
     clf_ada.fit(X_train, y_train)
     y_pred = clf_ada.predict(X_test) #predict with trained
 
-    acc = accuracy_score(y_test, y_pred) * 100
+    test_error = (clf_ada.predict(X_test)  != y_test).mean() * 100
     train_error = (clf_ada.predict(X_train) != y_train).mean() * 100
 
 
-    print(f"n_estimators={100}, max_depth={depth} ---- accuracy={acc:.8f}%") 
-    print(f"train-error={train_error:.8f}%")
+    print(f"n_estimators={100}, max_depth={depth} ----  test_error={test_error:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
 
 print("--------------- adaboost (n_estimators variation) -----------------")
 for estimator in estimators:
@@ -115,12 +117,12 @@ for estimator in estimators:
     clf_ada.fit(X_train, y_train)
     y_pred = clf_ada.predict(X_test) #predict with trained
 
-    acc = accuracy_score(y_test, y_pred) * 100
+    test_error = (clf_ada.predict(X_test)  != y_test).mean() * 100
     train_error = (clf_ada.predict(X_train) != y_train).mean() * 100
 
 
-    print(f"n_estimators={estimator} ---- accuracy={acc:.8f}%") 
-    print(f"train-error={train_error:.8f}%")
+    print(f"n_estimators={estimator} ---- test_error={test_error:.4f}%") 
+    print(f"train-error={train_error:.4f}%")
     
 # different training set sizes
 
@@ -138,7 +140,7 @@ for f in fractions:
 
     train_error = (clf.predict(X_sub) != y_sub).mean() * 100
     test_error = (clf.predict(X_test) != y_test).mean() * 100
-    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.8f}%")
+    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.4f}%")
 
 
 print("--------------- Random Forest (training size variation) -----------------")
@@ -154,7 +156,7 @@ for f in fractions:
     test_error = (clf_forest.predict(X_test) != y_test).mean() * 100
 
 
-    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.8f}%")
+    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.4f}%")
 
 
 print("--------------- Adaboost (training size variation) -----------------")
@@ -170,7 +172,7 @@ for f in fractions:
     test_error = (clf_ada.predict(X_test) != y_test).mean() * 100
 
 
-    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.8f}%")
+    print(f"n={n} ---- train_error={train_error:.8f}%  test_error={test_error:.4f}%")
 
 #defining k-fold cross-validation
 
