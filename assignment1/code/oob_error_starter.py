@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import check_random_state  
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 GLOBAL_SEED = 0
 
@@ -26,7 +27,6 @@ def oob_error(rf, X, y):
     unsampled_indices_for_all_trees= []
     classes = rf.classes_
     voting = np.zeros((n_samples, len(classes)))
-    print(classes) #[0 1]
     
     for estimator in rf.estimators_:
         random_instance = check_random_state(estimator.random_state)
@@ -45,12 +45,12 @@ def oob_error(rf, X, y):
         preds = tree.predict(X_arr[idx])
         #add 1 to the class label for the idx, astype fixes floating points issues
         np.add.at(voting, (idx, preds.astype(int)), 1)
-        oob_pred_cols = np.argmax(voting, axis = 1) # column max of the class
-        oob_preds = classes[oob_pred_cols] #mapping 1d predicitons to actual class labels
-        
-        covered = voting.sum(axis=1) > 0 #skip over ones with no votes + make a True/False mask
+    oob_pred_cols = np.argmax(voting, axis = 1) # column max of the class
+    oob_preds = classes[oob_pred_cols] #mapping 1d predicitons to actual class labels
+    
+    covered = voting.sum(axis=1) > 0 #skip over ones with no votes + make a True/False mask
 
-        err = np.mean(oob_preds[covered] != y[covered])
+    err = np.mean(oob_preds[covered] != y[covered])
     
     return err
     
@@ -72,6 +72,22 @@ scikit_oob_error = 1 - clf_forest.oob_score_
 print(f"scikit-learn oob_error: {scikit_oob_error}")
 print(f"implemented oob_error: {oob_error(clf_forest, X_train, y_train)}")
 
+#plotting
+
+rf = RandomForestClassifier(warm_start=True, random_state=GLOBAL_SEED, n_jobs=-1)
+tree_counts = list(range(1, 30)) + [40, 50, 75, 100, 150]
+oob_curve = []
+for m in tree_counts:
+    rf.n_estimators = m
+    rf.fit(X_train, y_train)   
+    oob_curve.append(oob_error(rf, X_train, y_train))
+    
+plt.plot(tree_counts, oob_curve, color='green', linestyle='--', marker='o')
+plt.title("OOB error vs number of trees")
+plt.xlabel("num trees")
+plt.ylabel("OOB error")
+plt.savefig("oob_vs_trees.png", dpi=150, bbox_inches="tight")
+plt.show()
 
 
 ## Result:
