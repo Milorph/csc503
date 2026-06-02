@@ -1,17 +1,11 @@
 ## Data Mining - Summer 2026 (author: Nishant Mehta)
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split 
 from sklearn.utils import check_random_state  
 import numpy as np
+import pandas as pd
 
-## This is some dummy data just so you have a complete working example
-X = [[0, 0], [1, 1], [0, 0], [1, 1],[0, 0], [1, 1], [0, 0], [1, 1]]
-Y = [0, 1, 1, 0, 0, 1, 1, 0]
-M = 10 # number of trees in random forest
-rf = RandomForestClassifier(n_estimators = M, random_state = 0)
-rf = rf.fit(X, Y)
-n_samples = len(X)
-n_samples_bootstrap = n_samples
-
+GLOBAL_SEED = 0
 
 ## THE ACTUAL STARTER CODE YOU SHOULD GRAB BEGINS BELOW
 
@@ -22,34 +16,63 @@ n_samples_bootstrap = n_samples
 #    - rf is a random forest, obtained via a call to
 #      RandomForestClassifier(...) in scikit-learn
 
-unsampled_indices_for_all_trees= []
-for estimator in rf.estimators_:
-    random_instance = check_random_state(estimator.random_state)
-    sample_indices = random_instance.randint(0, n_samples, n_samples_bootstrap)
-    sample_counts = np.bincount(sample_indices, minlength = n_samples)
-    unsampled_mask = (sample_counts == 0)
-    indices_range = np.arange(n_samples)
-    unsampled_indices = indices_range[unsampled_mask]
-    unsampled_indices_for_all_trees += [unsampled_indices]
-    
-    
+
 def oob_error(rf, X, y):
+    #given starter, replacing dummy data
     X_arr = np.asarray(X)
     y = np.asarray(y)
     n_samples = len(X_arr)
+    n_samples_bootstrap = n_samples
+    unsampled_indices_for_all_trees= []
     classes = rf.classes_
-    vote_counts = np.zeros((n_samples, len(classes)), dtype=int)
-
-    # build unsampled_indices_for_all_trees here (the starter loop)
-
-    for tree, oob_idx in zip(rf.estimators_, unsampled_indices_for_all_trees):
-        #skip if no oob examples
-        #predict with this tree on X_arr[oob_idx]
-        #map preds to columns, scatter-add into vote_counts
-
-
+    voting = np.zeros((n_samples, len(classes)))
+    print(classes) #[0 1]
+    
+    for estimator in rf.estimators_:
+        random_instance = check_random_state(estimator.random_state)
+        sample_indices = random_instance.randint(0, n_samples, n_samples_bootstrap)
+        sample_counts = np.bincount(sample_indices, minlength = n_samples)
+        unsampled_mask = (sample_counts == 0)
+        indices_range = np.arange(n_samples)
+        unsampled_indices = indices_range[unsampled_mask]
+        unsampled_indices_for_all_trees += [unsampled_indices]
         
+    for tree, idx in zip(rf.estimators_ , unsampled_indices_for_all_trees):
+        #skip if not oob
+        if len(idx) == 0:
+            continue
+        #predicting for that unsampled
+        preds = tree.predict(X_arr[idx])
+        #add 1 to the class label for the idx, astype fixes floating points issues
+        np.add.at(voting, (idx, preds.astype(int)), 1)
+        oob_pred_cols = np.argmax(voting, axis = 1) # column max of the class
+        oob_preds = classes[oob_pred_cols] #mapping 1d predicitons to actual class labels
+        
+        covered = voting.sum(axis=1) > 0 #skip over ones with no votes + make a True/False mask
+
+        err = np.mean(oob_preds[covered] != y[covered])
+    
     return err
+    
+
+df = pd.read_csv("../data/spambase_augmented.csv", header=None)
+print(df.shape) #(4601, 1186) -> 4601 rows, 1186 cols -> 
+ 
+features = df.iloc[ : , :-1] #all except label
+labels = df.iloc [ :, -1] #label
+ 
+#Grabbed example to shuffle and split
+#from https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.train_test_split.html
+X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=GLOBAL_SEED)
+print(X_train.shape, X_test.shape, y_train.shape, y_test.shape)
+clf_forest = RandomForestClassifier(oob_score=True, random_state=GLOBAL_SEED,  n_jobs=-1) 
+clf_forest.fit(X_train, y_train)
+scikit_oob_error = 1 - clf_forest.oob_score_
+
+print(f"scikit-learn oob_error: {scikit_oob_error}")
+print(f"implemented oob_error: {oob_error(clf_forest, X_train, y_train)}")
+
+
 
 ## Result:
 #    unsampled_indices_for_all_trees is a list with one element for each tree
@@ -65,4 +88,3 @@ def oob_error(rf, X, y):
 #         ...
 #         array([1, 2, 5])]
 
-print(unsampled_indices_for_all_trees)
