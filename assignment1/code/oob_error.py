@@ -4,6 +4,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import check_random_state  
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 GLOBAL_SEED = 0
@@ -87,7 +89,7 @@ plt.title("OOB error vs number of trees")
 plt.xlabel("num trees")
 plt.ylabel("OOB error")
 plt.savefig("oob_vs_trees.png", dpi=150, bbox_inches="tight")
-plt.show()
+plt.close()
 
 
 ## Result:

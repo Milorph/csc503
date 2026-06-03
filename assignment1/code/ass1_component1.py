@@ -5,6 +5,9 @@ from sklearn import tree
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 GLOBAL_SEED = 0
  
 df = pd.read_csv("../data/spambase_augmented.csv", header=None)
@@ -223,9 +226,10 @@ def k_fold_cross_valid(model_select, k, X, y, random_seed=GLOBAL_SEED):
     return np.mean(val_errors), val_errors
  
 # k-fold random forest
-rf_sizes = [1, 5, 10, 25, 50, 100, 150, 200, 250, 300, 350, 400]
+rf_sizes = [1, 5, 10, 25, 50, 100, 150, 200, 250, 300 ]
 rf_scores = {}
 for m in rf_sizes:
+    print(f"[RF k-fold] n_estimators={m}")
     rf = RandomForestClassifier(n_estimators=m, random_state=GLOBAL_SEED, n_jobs=-1)
     mean_err, _ = k_fold_cross_valid(rf, 5, X_train, y_train)
     rf_scores[m] = mean_err
@@ -234,21 +238,73 @@ best_rf_size = min(rf_scores, key=rf_scores.get) #find best param for n_estimato
  
  
 # k-fold ada
-ada_sizes = [1, 5, 10, 25, 50, 100, 200, 300, 400, 450, 500, 550, 600]
+ada_sizes = [1, 5, 10, 25, 50, 100, 200, 300]
 ada_scores = {}
 for m in ada_sizes:
+    print(f"[AdaBoost k-fold] n_estimators={m}")
     ada = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1),n_estimators=m, random_state=GLOBAL_SEED)
     mean_err, _ = k_fold_cross_valid(ada, 5, X_train, y_train)
     ada_scores[m] = mean_err
  
  
 best_ada_size = min(ada_scores, key=ada_scores.get)
- 
-print(best_rf_size, best_ada_size)
+
 # use best params
 best_rf = RandomForestClassifier(n_estimators=best_rf_size, random_state=GLOBAL_SEED, n_jobs=-1).fit(X_train, y_train)
 best_ada = AdaBoostClassifier(estimator=DecisionTreeClassifier(max_depth=1), n_estimators=best_ada_size, random_state=GLOBAL_SEED).fit(X_train, y_train)
  
 rf_test_err  = (best_rf.predict(X_test)  != y_test).mean() * 100
 ada_test_err = (best_ada.predict(X_test) != y_test).mean() * 100
+
+print(f"tuned RF  (n_estimators={best_rf_size}) test error: {rf_test_err:.4f}%")
+print(f"tuned Ada (n_estimators={best_ada_size}) test error: {ada_test_err:.4f}%")
+
 #plotting
+
+#helper method using stored results
+def plot_train_test(results, x_key, xlabel, title, filename, categorical=False):
+    xs    = [r[x_key] for r in results]
+    train = [r["train_error"] for r in results]
+    test  = [r["test_error"]  for r in results]
+
+    plt.figure()
+    if categorical:                         # x is non-numeric or has awkward values
+        pos = range(len(xs))
+        plt.plot(pos, train, marker='o', label='train error')
+        plt.plot(pos, test,  marker='s', label='test error')
+        plt.xticks(pos, [str(x) for x in xs], rotation=45)
+    else:                                   # x is clean numeric
+        plt.plot(xs, train, marker='o', label='train error')
+        plt.plot(xs, test,  marker='s', label='test error')
+    plt.xlabel(xlabel)
+    plt.ylabel("error (%)")
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.savefig(filename, dpi=150, bbox_inches="tight")
+    plt.close()
+
+#two hyperparameters per method plots
+plot_train_test(dt_alpha_results,  "ccp_alpha", "ccp_alpha", "Decision tree: error vs ccp_alpha", "dt_alpha.png", categorical=True)
+plot_train_test(dt_depth_results,  "max_depth", "max depth", "Decision tree: error vs max depth", "dt_depth.png")
+
+plot_train_test(rf_feature_results, "max_features", "max_features", "Random forest: error vs max_features", "rf_features.png", categorical=True)
+plot_train_test(rf_estimator_results, "n_estimators", "number of trees", "Random forest: error vs number of trees", "rf_estimators.png")
+
+plot_train_test(ada_depth_results, "max_depth", "weak-learner max depth", "AdaBoost: error vs weak-learner depth", "ada_depth.png")
+plot_train_test(ada_estimator_results, "n_estimators", "number of iterations", "AdaBoost: error vs number of iterations", "ada_estimators.png")
+
+# training-set-size curves plots
+plot_train_test(dt_size_results,  "n", "training set size", "Decision tree: error vs training size", "dt_size.png")
+plot_train_test(rf_size_results,  "n", "training set size", "Random forest: error vs training size", "rf_size.png")
+plot_train_test(ada_size_results, "n", "training set size", "AdaBoost: error vs training size", "ada_size.png")
+
+#CV error vs ensemble size plots
+plt.figure()
+plt.plot(list(rf_scores.keys()),  [v*100 for v in rf_scores.values()],  marker='o', label='random forest')
+plt.plot(list(ada_scores.keys()), [v*100 for v in ada_scores.values()], marker='s', label='AdaBoost stumps')
+plt.xlabel("ensemble size"); plt.ylabel("5-fold CV error (%)")
+plt.title("Part II: cross-validation error vs ensemble size")
+plt.legend(); plt.grid(True, alpha=0.3)
+plt.savefig("cv_vs_size.png", dpi=150, bbox_inches="tight")
+plt.close()
