@@ -308,3 +308,36 @@ plt.title("Part II: cross-validation error vs ensemble size")
 plt.legend(); plt.grid(True, alpha=0.3)
 plt.savefig("cv_vs_size.png", dpi=150, bbox_inches="tight")
 plt.close()
+
+print("--------------- Decision Tree: Gini vs Entropy (depth sweep) -----------------")
+criteria = ["gini", "entropy"]
+dt_criterion_results = {}
+
+for crit in criteria:
+    dt_criterion_results[crit] = []
+    for depth in [2, 4, 6, 8, 10, 12, 14]:
+        clf = tree.DecisionTreeClassifier(
+            random_state=GLOBAL_SEED,
+            criterion=crit,
+            ccp_alpha=1e-3,
+            max_depth=depth,
+        )
+        clf.fit(X_train, y_train)
+        train_error = (clf.predict(X_train) != y_train).mean() * 100
+        test_error  = (clf.predict(X_test)  != y_test).mean() * 100
+        print(f"criterion={crit}, max_depth={depth} ---- test_error={test_error:.4f}%  train_error={train_error:.4f}%")
+        dt_criterion_results[crit].append({"max_depth": depth, "train_error": train_error, "test_error": test_error})
+
+#test error vs depth, one line per criterion
+plt.figure()
+for crit in criteria:
+    xs   = [r["max_depth"]  for r in dt_criterion_results[crit]]
+    test = [r["test_error"] for r in dt_criterion_results[crit]]
+    plt.plot(xs, test, marker='o', label=f'{crit} test error')
+plt.xlabel("max depth")
+plt.ylabel("test error (%)")
+plt.title("Decision tree: Gini vs entropy")
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.savefig("dt_criterion.png", dpi=150, bbox_inches="tight")
+plt.close()
