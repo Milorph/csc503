@@ -238,7 +238,7 @@ best_rf_size = min(rf_scores, key=rf_scores.get) #find best param for n_estimato
  
  
 # k-fold ada
-ada_sizes = [1, 5, 10, 25, 50, 100, 150, 200, 250 300]
+ada_sizes = [1, 5, 10, 25, 50, 100, 150, 200, 250, 300]
 ada_scores = {}
 for m in ada_sizes:
     print(f"[AdaBoost k-fold] n_estimators={m}")
