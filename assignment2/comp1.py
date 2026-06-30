@@ -1,5 +1,9 @@
 import os, gzip
 import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.linear_model import SGDClassifier
+
 
 
 #GLOBAL VARIABLES
@@ -76,11 +80,48 @@ def k_fold_cross_valid(model_select, k, X, y, random_seed=SEED):
     for i in range(len(folds)):
         held_out_idx = folds[i]
         train_idx = np.concatenate([folds[j] for j in range(k) if j != i]) # put together all the other folds
-        model_select.fit(X.iloc[train_idx], y.iloc[train_idx])
-        err = (model_select.predict(X.iloc[held_out_idx]) != y.iloc[held_out_idx]).mean()
+        model_select.fit(X[train_idx], y[train_idx]) #had to change iloc because it doesn't fit this dataset
+        err = (model_select.predict(X[held_out_idx]) != y[held_out_idx]).mean()
         val_errors.append(err)
     
     return np.mean(val_errors), val_errors
   
   
-  
+#make the linear svm
+
+K = 5
+N_TRAIN = len(Xtr)   # 12000 used for the alpha = 1/(N*C) conversion 
+
+def make_linear_svm(C):
+    alpha = 1.0 / (N_TRAIN * C)
+    return SGDClassifier(loss="hinge", alpha=alpha, max_iter=2000, tol=1e-4, random_state=SEED)
+
+#tune C with my k-fold CV, using logspace because its much better linear grid
+C_grid_cv = np.logspace(-5, 4, 10)
+cv_means = []
+for C in C_grid_cv:
+    mean_err, _ = k_fold_cross_valid(make_linear_svm(C), K, Xtr, ytr)
+    cv_means.append(mean_err)
+    print(f"  C={C:>10.4g}   {K}-fold CV error = {mean_err:.4f}")
+best_C = float(C_grid_cv[int(np.argmin(cv_means))])
+print(f">>> recorded optimal linear-SVM C = {best_C:.4g}")
+
+#train/test error over a wider grid, using train and test sets
+C_grid_plot = np.logspace(-6, 4, 21)
+tr_err, te_err = [], []
+for C in C_grid_plot:
+  m = make_linear_svm(C); m.fit(Xtr, ytr)
+  tr_err.append((m.predict(Xtr) != ytr).mean())
+  te_err.append((m.predict(Xte) != yte).mean())
+
+#Plottings
+plt.figure()
+plt.semilogx(C_grid_plot, tr_err, "o-", label="training error (noisy labels)")
+plt.semilogx(C_grid_plot, te_err, "s-", label="test error")
+plt.axvline(best_C, ls="--", color="gray", label=f"CV-chosen C={best_C:.2g}")
+plt.xlabel("regularization parameter C")
+plt.ylabel("classification error")
+plt.title("Linear SVM: train/test error vs C")
+plt.legend(); plt.tight_layout()
+plt.savefig("results/linear_svm.png", dpi=150)
+plt.show()
