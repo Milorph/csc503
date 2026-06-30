@@ -43,6 +43,15 @@ def load_data():
  
     return Xtr, ytr_noisy, Xte, yte, flip.sum()
 
+#print checks (forgot to add to commit)
+Xtr, ytr, Xte, yte, n_flipped = load_data()
+print("train:", Xtr.shape, " test:", Xte.shape)
+print("train class counts (after noise):", np.bincount(ytr))
+print("test  class counts:", np.bincount(yte))
+print(f"flipped {n_flipped} / {len(ytr)} training labels (p={P_FLIP})")
+print("pixel range:", Xtr.min(), "to", Xtr.max())
+
+
 #defining k-fold cross-validation
  
 # pass the model, num folds, data, global seed
