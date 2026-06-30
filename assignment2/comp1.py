@@ -1,6 +1,11 @@
 import os, gzip
 import numpy as np
 import matplotlib.pyplot as plt
+
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 
 from sklearn.linear_model import SGDClassifier
@@ -28,7 +33,7 @@ def load_mnist(path, kind="train"):
 def load_data():
     #load full MNIST
     Xtr_full, ytr_full = load_mnist(DATA_DIR, kind="train")
-    Xte_full, yte_full = load_mnist(DATA_DIR, kind="t10k")
+    Xte_full, yte_full = load_mnist(DATA_DIR, kind="t10k") #loads 10000
  
     #keep only classes 5 and 7 while remapping 5 -> 0, 7 -> 1
     def keep_57(X, y):
@@ -48,7 +53,7 @@ def load_data():
  
     return Xtr, ytr_noisy, Xte, yte, flip.sum()
 
-#print checks (forgot to add to commit)
+#print checks
 Xtr, ytr, Xte, yte, n_flipped = load_data()
 print("train:", Xtr.shape, " test:", Xte.shape)
 print("train class counts (after noise):", np.bincount(ytr))
@@ -57,7 +62,7 @@ print(f"flipped {n_flipped} / {len(ytr)} training labels (p={P_FLIP})")
 print("pixel range:", Xtr.min(), "to", Xtr.max())
 
 
-PER_CLASS = 1000 #The entire 12000 was super slow so this is configurable for now, 3000 still too slow, 1000 was allowed so I'm doing it
+PER_CLASS = 2000 #The entire 12000 was super slow so this is configurable for now, 3000 still too slow, 1000 was allowed so I'm doing it
 if PER_CLASS is not None:
     idx = np.concatenate([rng.permutation(np.where(ytr == c)[0])[:PER_CLASS] for c in (0, 1)])
     idx = rng.permutation(idx)
@@ -155,7 +160,48 @@ for (g, C) in tuned:
 
 
 
-#Neural net next (tmr)
+#Neural net next
+
+#https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html
+
+def make_mlp(hidden, activation, max_iter=200, alpha=1e-4):
+    return MLPClassifier(hidden_layer_sizes=hidden, activation=activation, alpha=alpha, max_iter=max_iter, solver="adam", random_state=SEED)
+
+#tune structure + nonlinearity with my k-fold CV
+nn_configs = [((50,), "relu"), ((100,), "relu"), ((50,), "tanh"), ((100,), "tanh"), ((50, 50), "relu")]
+
+nn_cv = []
+for (hidden, act) in nn_configs:
+    e, _ = k_fold_cross_valid(make_mlp(hidden, act), K, Xtr, ytr)
+    nn_cv.append(e)
+    print(f"hidden={hidden}, act={act} CV err = {e:.4f}")
+bi_nn = int(np.argmin(nn_cv))
+best_hidden, best_act = nn_configs[bi_nn]
+print(f"recorded optimal NN: hidden={best_hidden}, activation={best_act}")
+
+#Testing the neural net on the experiments
+
+#vary number of hidden nodes
+node_grid = [5, 10, 25, 50, 100, 200]
+tr_err_nnA, te_err_nnA = [], []
+for h in node_grid:
+    m = make_mlp((h,), best_act).fit(Xtr, ytr)
+    tr_err_nnA.append((m.predict(Xtr) != ytr).mean())
+    te_err_nnA.append((m.predict(Xte) != yte).mean())
+
+#vary number of training epochs
+epoch_grid = [1, 2, 5, 10, 25, 50, 100, 200]
+tr_err_nnB, te_err_nnB = [], []
+for mi in epoch_grid:
+    m = make_mlp(best_hidden, best_act, max_iter=mi).fit(Xtr, ytr)
+    tr_err_nnB.append((m.predict(Xtr) != ytr).mean())
+    te_err_nnB.append((m.predict(Xte) != yte).mean())
+    
+#compare the svm, gaussian kernel and neural net (using the fine tuned, just call the helpers with the best param)
+
+
+
+
 
 #Plottings
 
@@ -181,4 +227,24 @@ plt.ylabel("classification error")
 plt.title("Gaussian-kernel SVM (C tuned per gamma): error vs gamma")
 plt.legend(); plt.tight_layout()
 plt.savefig("results/gaussian_svm.png", dpi=150)
+plt.show()
+
+plt.figure()
+plt.plot(node_grid, tr_err_nnA, "o-", label="training error (noisy labels)")
+plt.plot(node_grid, te_err_nnA, "s-", label="test error")
+plt.xlabel("number of nodes in hidden layer")
+plt.ylabel("classification error")
+plt.title(f"NN: vary hidden-layer width (activation={best_act})")
+plt.legend(); plt.tight_layout()
+plt.savefig("results/nn_width.png", dpi=150)
+plt.show()
+
+plt.figure()
+plt.plot(epoch_grid, tr_err_nnB, "o-", label="training error (noisy labels)")
+plt.plot(epoch_grid, te_err_nnB, "s-", label="test error")
+plt.xlabel("max training epochs (max_iter)")
+plt.ylabel("classification error")
+plt.title(f"NN: vary training epochs (hidden={best_hidden}, act={best_act})")
+plt.legend(); plt.tight_layout()
+plt.savefig("results/nn_epochs.png", dpi=150)
 plt.show()
