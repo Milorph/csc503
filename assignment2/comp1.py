@@ -1,6 +1,7 @@
 import os, gzip
 import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.svm import SVC
 
 from sklearn.linear_model import SGDClassifier
 
@@ -102,26 +103,72 @@ cv_means = []
 for C in C_grid_cv:
     mean_err, _ = k_fold_cross_valid(make_linear_svm(C), K, Xtr, ytr)
     cv_means.append(mean_err)
-    print(f"  C={C:>10.4g}   {K}-fold CV error = {mean_err:.4f}")
+    print(f"  C={C:.4f}   {K}-fold CV error = {mean_err:.4f}")
 best_C = float(C_grid_cv[int(np.argmin(cv_means))])
-print(f">>> recorded optimal linear-SVM C = {best_C:.4g}")
+print(f">>> recorded optimal linear-SVM C = {best_C:.4f}")
 
 #train/test error over a wider grid, using train and test sets
 C_grid_plot = np.logspace(-6, 4, 21)
-tr_err, te_err = [], []
+tr_err_lin, te_err_lin = [], [] #renamed
 for C in C_grid_plot:
   m = make_linear_svm(C); m.fit(Xtr, ytr)
-  tr_err.append((m.predict(Xtr) != ytr).mean())
-  te_err.append((m.predict(Xte) != yte).mean())
+  tr_err_lin.append((m.predict(Xtr) != ytr).mean())
+  te_err_lin.append((m.predict(Xte) != yte).mean())
+  
+
+#gaussian kernel
+#reference: https://scikit-learn.org/stable/modules/generated/sklearn.svm.SVC.html
+
+gamma_grid = np.logspace(-4, 0, 6)  
+C_grid     = np.logspace(-1, 3, 5) 
+
+#for each gamma, tune C by k-fold CV
+tuned, tuned_cv = [], []
+for g in gamma_grid:
+    errs = []
+    for C in C_grid:
+        e, _ = k_fold_cross_valid(SVC(kernel="rbf", gamma=g, C=C), K, Xtr, ytr)
+        errs.append(e)
+    j = int(np.argmin(errs))
+    tuned.append((g, float(C_grid[j])))
+    tuned_cv.append(errs[j]) # one tuned (gamma, C_gamma) SVM per gamma
+    print(f"gamma={g:.4f} , tuned C={C_grid[j]:.4f} , (CV err {errs[j]:.4f})")
+
+#pick the best gamma by comparing the tuned SVMs' CV scores
+bi = int(np.argmin(tuned_cv))
+best_gamma, best_Cg = tuned[bi]
+print(f"recorded optimal Gaussian SVM: gamma={best_gamma:.4g}, C={best_Cg:.4g}")
+
+#for each tuned SVM, train on full train, record train and test error (renamed it becuz of similar variable names)
+tr_err_g, te_err_g = [], []
+for (g, C) in tuned:
+    m = SVC(kernel="rbf", gamma=g, C=C).fit(Xtr, ytr)
+    tr_err_g.append((m.predict(Xtr) != ytr).mean())
+    te_err_g.append((m.predict(Xte) != yte).mean())
+
 
 #Plottings
+
+os.makedirs("results", exist_ok=True)
+
 plt.figure()
-plt.semilogx(C_grid_plot, tr_err, "o-", label="training error (noisy labels)")
-plt.semilogx(C_grid_plot, te_err, "s-", label="test error")
+plt.semilogx(C_grid_plot, tr_err_lin, "o-", label="training error (noisy labels)")
+plt.semilogx(C_grid_plot, te_err_lin, "s-", label="test error")
 plt.axvline(best_C, ls="--", color="gray", label=f"CV-chosen C={best_C:.2g}")
 plt.xlabel("regularization parameter C")
 plt.ylabel("classification error")
 plt.title("Linear SVM: train/test error vs C")
 plt.legend(); plt.tight_layout()
 plt.savefig("results/linear_svm.png", dpi=150)
+plt.show()
+
+plt.figure()
+plt.semilogx(gamma_grid, tr_err_g, "o-", label="training error (noisy labels)")
+plt.semilogx(gamma_grid, te_err_g, "s-", label="test error")
+plt.axvline(best_gamma, ls="--", color="gray", label=f"CV-chosen gamma={best_gamma:.2g}")
+plt.xlabel("Gaussian-kernel scale gamma")
+plt.ylabel("classification error")
+plt.title("Gaussian-kernel SVM (C tuned per gamma): error vs gamma")
+plt.legend(); plt.tight_layout()
+plt.savefig("results/gaussian_svm.png", dpi=150)
 plt.show()
