@@ -9,14 +9,14 @@ from sklearn.linear_model import SGDClassifier
 
 #GLOBAL VARIABLES
 
-DATA_DIR = "data/fashion-mnist-master/data/fashion"
+DATA_DIR = "data/fashion-mnist-master/data/fashion" #REMINDER FOR MYSELF: add the instructions to make a folder data in same directory and extract the zip contents into it
 SEED = 0
 P_FLIP = 0.2 #between 0.1 and 0.3 for p
 rng = np.random.default_rng(SEED)
 
-
+#from the repo's utils/mnist_reader.py)
 def load_mnist(path, kind="train"):
-    #from the repo's utils/mnist_reader.py)
+    
     labels_path = os.path.join(path, f"{kind}-labels-idx1-ubyte.gz")
     images_path = os.path.join(path, f"{kind}-images-idx3-ubyte.gz")
     with gzip.open(labels_path, "rb") as f:
@@ -57,7 +57,14 @@ print(f"flipped {n_flipped} / {len(ytr)} training labels (p={P_FLIP})")
 print("pixel range:", Xtr.min(), "to", Xtr.max())
 
 
-#defining k-fold cross-validation
+PER_CLASS = 1000 #The entire 12000 was super slow so this is configurable for now, 3000 still too slow, 1000 was allowed so I'm doing it
+if PER_CLASS is not None:
+    idx = np.concatenate([rng.permutation(np.where(ytr == c)[0])[:PER_CLASS] for c in (0, 1)])
+    idx = rng.permutation(idx)
+    Xtr, ytr = Xtr[idx], ytr[idx]
+print("training set reduced to:", Xtr.shape)
+
+#defining k-fold cross-validation FROM ass1
  
 # pass the model, num folds, data, global seed
 def k_fold_cross_valid(model_select, k, X, y, random_seed=SEED):
@@ -105,7 +112,7 @@ for C in C_grid_cv:
     cv_means.append(mean_err)
     print(f"  C={C:.4f}   {K}-fold CV error = {mean_err:.4f}")
 best_C = float(C_grid_cv[int(np.argmin(cv_means))])
-print(f">>> recorded optimal linear-SVM C = {best_C:.4f}")
+print(f"----- recorded optimal linear-SVM C = {best_C:.4f}")
 
 #train/test error over a wider grid, using train and test sets
 C_grid_plot = np.logspace(-6, 4, 21)
@@ -134,7 +141,7 @@ for g in gamma_grid:
     tuned_cv.append(errs[j]) # one tuned (gamma, C_gamma) SVM per gamma
     print(f"gamma={g:.4f} , tuned C={C_grid[j]:.4f} , (CV err {errs[j]:.4f})")
 
-#pick the best gamma by comparing the tuned SVMs' CV scores
+#pick the best gamma by comparing the tu CV scores
 bi = int(np.argmin(tuned_cv))
 best_gamma, best_Cg = tuned[bi]
 print(f"recorded optimal Gaussian SVM: gamma={best_gamma:.4g}, C={best_Cg:.4g}")
@@ -146,6 +153,9 @@ for (g, C) in tuned:
     tr_err_g.append((m.predict(Xtr) != ytr).mean())
     te_err_g.append((m.predict(Xte) != yte).mean())
 
+
+
+#Neural net next (tmr)
 
 #Plottings
 
