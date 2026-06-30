@@ -22,16 +22,26 @@ def load_mnist(path, kind="train"):
   
 def load_data():
     #load full MNIST
-
+    Xtr_full, ytr_full = load_mnist(DATA_DIR, kind="train")
+    Xte_full, yte_full = load_mnist(DATA_DIR, kind="t10k")
  
     #keep only classes 5 and 7 while remapping 5 -> 0, 7 -> 1
-
+    def keep_57(X, y):
+        mask = (y == 5) | (y == 7)
+        return X[mask], np.where(y[mask] == 5, 0, 1)
+    Xtr, ytr = keep_57(Xtr_full, ytr_full)
+    Xte, yte = keep_57(Xte_full, yte_full)
  
     #normalize inputs to [0, 1]
-
+    Xtr = Xtr.astype(np.float64) / 255.0
+    Xte = Xte.astype(np.float64) / 255.0
  
     # add noise
-
+    flip = rng.random(len(ytr)) < P_FLIP
+    ytr_noisy = ytr.copy()
+    ytr_noisy[flip] = 1 - ytr_noisy[flip]
+ 
+    return Xtr, ytr_noisy, Xte, yte, flip.sum()
 
 #defining k-fold cross-validation
  
