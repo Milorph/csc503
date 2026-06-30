@@ -4,8 +4,8 @@ import numpy as np
 
 #GLOBAL VARIABLES
 
-DATA_DIR = "assignment2/data/fashion-mnist-master/data/fashion"
-SEED     = 0
+DATA_DIR = "data/fashion-mnist-master/data/fashion"
+SEED = 0
 P_FLIP = 0.2 #between 0.1 and 0.3 for p
 rng = np.random.default_rng(SEED)
 
@@ -55,7 +55,7 @@ print("pixel range:", Xtr.min(), "to", Xtr.max())
 #defining k-fold cross-validation
  
 # pass the model, num folds, data, global seed
-def k_fold_cross_valid(model_select, k, X, y, random_seed=GLOBAL_SEED):
+def k_fold_cross_valid(model_select, k, X, y, random_seed=SEED):
     n = len(X)
  
     #required shuffling the indices once to be considered a k-fold-cross-valid
