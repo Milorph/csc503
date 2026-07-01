@@ -61,8 +61,11 @@ print("test  class counts:", np.bincount(yte))
 print(f"flipped {n_flipped} / {len(ytr)} training labels (p={P_FLIP})")
 print("pixel range:", Xtr.min(), "to", Xtr.max())
 
+#keep the full (noisy) training set so the linear-SVM plot can use all 12000,
+#which the assignment requires for that plot specifically
+Xtr_full, ytr_full = Xtr, ytr
 
-PER_CLASS = 2000 #The entire 12000 was super slow so this is configurable for now, 3000 still too slow, 1000 was allowed so I'm doing it
+PER_CLASS = 2000
 if PER_CLASS is not None:
     idx = np.concatenate([rng.permutation(np.where(ytr == c)[0])[:PER_CLASS] for c in (0, 1)])
     idx = rng.permutation(idx)
@@ -103,10 +106,12 @@ def k_fold_cross_valid(model_select, k, X, y, random_seed=SEED):
 #make the linear svm
 
 K = 5
-N_TRAIN = len(Xtr)   # 12000 used for the alpha = 1/(N*C) conversion 
+N_TRAIN = len(Xtr)        # 4000 after reduction (2000/class)
+N_FULL  = len(Xtr_full)   # 12000 full training set
 
-def make_linear_svm(C):
-    alpha = 1.0 / (N_TRAIN * C)
+def make_linear_svm(C, n=N_TRAIN):
+    # alpha = 1/(nC); n = size of the set this SVM trains on, so C keeps the same meaning
+    alpha = 1.0 / (n * C)
     return SGDClassifier(loss="hinge", alpha=alpha, max_iter=2000, tol=1e-4, random_state=SEED)
 
 #tune C with my k-fold CV, using logspace because its much better linear grid
@@ -121,11 +126,11 @@ print(f"----- recorded optimal linear-SVM C = {best_C:.4f}")
 
 #train/test error over a wider grid, using train and test sets
 C_grid_plot = np.logspace(-6, 4, 21)
-tr_err_lin, te_err_lin = [], [] #renamed
+tr_err_lin, te_err_lin = [], []
 for C in C_grid_plot:
-  m = make_linear_svm(C); m.fit(Xtr, ytr)
-  tr_err_lin.append((m.predict(Xtr) != ytr).mean())
-  te_err_lin.append((m.predict(Xte) != yte).mean())
+    m = make_linear_svm(C, n=N_FULL); m.fit(Xtr_full, ytr_full)
+    tr_err_lin.append((m.predict(Xtr_full) != ytr_full).mean())
+    te_err_lin.append((m.predict(Xte) != yte).mean())
   
 
 #gaussian kernel
