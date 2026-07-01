@@ -160,7 +160,7 @@ for (g, C) in tuned:
 
 
 
-#Neural net next
+#Neural net
 
 #https://scikit-learn.org/stable/modules/generated/sklearn.neural_network.MLPClassifier.html
 
@@ -199,7 +199,26 @@ for mi in epoch_grid:
     
 #compare the svm, gaussian kernel and neural net (using the fine tuned, just call the helpers with the best param)
 
+n_test = len(yte)
 
+#defining a 95% confidence interval
+def ci95(e, n):
+    return 1.96 * np.sqrt(e * (1 - e) / n)
+
+# train each optimally tuned method on the full training set, then test
+lin_final = make_linear_svm(best_C).fit(Xtr, ytr)
+lin_test  = (lin_final.predict(Xte) != yte).mean()
+
+gau_final = SVC(kernel="rbf", gamma=best_gamma, C=best_Cg).fit(Xtr, ytr)
+gau_test  = (gau_final.predict(Xte) != yte).mean()
+
+nn_final  = make_mlp(best_hidden, best_act).fit(Xtr, ytr)
+nn_test   = (nn_final.predict(Xte) != yte).mean()
+
+print("\ntest error of tuned methods")
+for name, e in [("Linear SVM", lin_test), ("Gaussian SVM", gau_test), ("Neural net", nn_test)]:
+    h = ci95(e, n_test)
+    print(f"  {name:<13} test error = {e:.4f}   95% CI +/- {h:.4f}  ->  [{e-h:.4f}, {e+h:.4f}]")
 
 
 
@@ -247,4 +266,20 @@ plt.ylabel("classification error")
 plt.title(f"NN: vary training epochs (hidden={best_hidden}, act={best_act})")
 plt.legend(); plt.tight_layout()
 plt.savefig("results/nn_epochs.png", dpi=150)
+plt.show()
+
+#tuned params plot for report
+
+methods   = ["Linear SVM", "Gaussian SVM", "Neural net"]
+test_errs = [lin_test, gau_test, nn_test]
+cis       = [ci95(e, n_test) for e in test_errs]
+
+plt.figure()
+plt.bar(methods, test_errs, yerr=cis, capsize=6, color=["#4C72B0", "#DD8452", "#55A868"])
+plt.ylabel("test error")
+plt.title("Tuned methods compared (error bars = 95% CI)")
+for i, e in enumerate(test_errs):
+    plt.text(i, e + cis[i] + 0.004, f"{e:.3f}", ha="center")
+plt.tight_layout()
+plt.savefig("results/comparison.png", dpi=150)
 plt.show()
